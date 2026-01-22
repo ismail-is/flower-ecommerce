@@ -4,7 +4,8 @@ const dotenv = require('dotenv');
 const mongoDB=require('./config/db')
 const productRoutes=require('./Router/productRoutes');
 const categoryRoutes=require('./Router/categoryRoutes');
-const orderController=require('./Router/orderRoutes');
+const orderRouter=require('./Router/orderRoutes');
+const reviewRouter=require('./Router/reviewRouter');
 
 
 
@@ -35,7 +36,8 @@ if (!fs.existsSync(productsDir)) {
 
 app.use('/api',productRoutes);
 app.use('/api',categoryRoutes);
-app.use('/api',orderController);
+app.use('/api',orderRouter);
+app.use('/api',reviewRouter);
 
 
 

@@ -26,6 +26,15 @@ const productSchema = new  Schema({
       ref: 'Category', // Foreign Key
       // required: true
     },
+     subCategory: {
+            type: mongoose.Schema.Types.ObjectId,
+            default: null
+          },
+            
+ color: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Color'
+  },
     stock: {
       type: Number,
       default: 0
@@ -34,6 +43,9 @@ const productSchema = new  Schema({
       type: String,
       required: true
     },
+     userEmail: {
+    type: String,
+  },
     images: [{
       type: String,
       default: []

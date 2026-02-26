@@ -1,11 +1,15 @@
 const express= require('express');
 const app=express();
 const dotenv = require('dotenv');
+const cors = require("cors");
+
 const mongoDB=require('./config/db')
 const productRoutes=require('./Router/productRoutes');
 const categoryRoutes=require('./Router/categoryRoutes');
 const orderRouter=require('./Router/orderRoutes');
 const reviewRouter=require('./Router/reviewRouter');
+const userRoutes=require('./Router/userRoutes');
+const colorRoutes=require('./Router/colorRoutes');
 
 
 
@@ -18,6 +22,9 @@ const port=7000;
 dotenv.config()
 
 app.use(express.json());
+app.use(cors());
+
+
 app.use(express.urlencoded({ extended: true }));
 
 
@@ -38,7 +45,9 @@ app.use('/api',productRoutes);
 app.use('/api',categoryRoutes);
 app.use('/api',orderRouter);
 app.use('/api',reviewRouter);
-
+app.use('/api',userRoutes);
+app.use('/api',colorRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 

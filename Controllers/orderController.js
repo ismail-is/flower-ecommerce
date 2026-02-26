@@ -1,13 +1,15 @@
 const Product = require('../Model/Product');
 const Order = require('../Model/Order');
+const mongoose = require("mongoose");
 
 
+const {sendOrderEmail,sendCancelEmail} = require("../Config/sendEmail");
 
-// create order
 const createOrder = async (req, res) => {
   try {
-    const { products, totalAmount, shippingAddress } = req.body;
+    const { products, totalAmount, shippingAddress, userEmail } = req.body;
 
+    // 1 Validation
     if (!products || products.length === 0) {
       return res.status(400).json({
         success: false,
@@ -15,7 +17,7 @@ const createOrder = async (req, res) => {
       });
     }
 
-    //  Check stock for each product
+    //  Check stock
     for (let item of products) {
       const product = await Product.findById(item.product);
 
@@ -46,14 +48,23 @@ const createOrder = async (req, res) => {
     const order = new Order({
       products,
       totalAmount,
-      shippingAddress
+      shippingAddress,
+      userEmail
     });
 
     await order.save();
 
+    //  Send confirmation email (FREE)
+    await sendOrderEmail(
+      userEmail,
+      order._id,
+      totalAmount
+    );
+
+    //  Response
     res.status(201).json({
       success: true,
-      message: "Order placed successfully",
+      message: "Order placed successfully & email sent",
       order
     });
 
@@ -115,15 +126,79 @@ const orderSingleView = async (req, res) => {
 };
 
 //oder update
+
 const orderUpdate = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
-    const { stock } = req.body;
+    const { products, totalAmount, shippingAddress, status } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    // ✅ CHECK STOCK (same as createOrder)
+    for (let item of products) {
+      const product = await Product.findById(item.product);
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found"
+        });
+      }
+
+      if (item.quantity > product.stock) {
+        return res.status(400).json({
+          success: false,
+          message: `Only ${product.stock} items available for ${product.name}`
+        });
+      }
+    }
+
+    // ✅ REDUCE STOCK (same as createOrder)
+    for (let item of products) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { stock: -item.quantity } }
+      );
+    }
+
+    // ✅ UPDATE ORDER
+    order.products = products;
+    order.totalAmount = totalAmount;
+    order.shippingAddress = shippingAddress;
+    order.status = status || order.status;
+
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Order updated successfully",
+      order
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Order update failed",
+      error: error.message
+    });
+  }
+};
 
 
-    
-    //  Find order
+//oder delete(cancel)
+
+const orderDelete = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1️⃣ Find order
     const order = await Order.findById(id);
 
     if (!order) {
@@ -133,59 +208,35 @@ const orderUpdate = async (req, res) => {
       });
     }
 
-    //  Handle stock when status changes
-    if (status === "processing" && order.status === "pending") {
-      for (let item of order.products) {
-        const product = await Product.findById(item.product);
-
-        if (!product) {
-          return res.status(404).json({
-            success: false,
-            message: "Product not found"
-          });
-        }
-
-        if (item.quantity > product.stock) {
-          return res.status(400).json({
-            success: false,
-            message: `Only ${product.stock} items left`
-          });
-        }
-
-        product.stock -= item.quantity;
-        await product.save();
-      }
+    // 2️⃣ Restore product stock
+    for (let item of order.products) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { stock: item.quantity } }
+      );
     }
 
-    //  Restore stock if cancelled
-    if (status === "cancelled" && order.status !== "cancelled") {
-      for (let item of order.products) {
-        await Product.findByIdAndUpdate(
-          item.product,
-          { $inc: { stock: item.quantity } }
-        );
-      }
-    }
+    // 3️⃣ Send cancel email
+    await sendCancelEmail(order.userEmail, order._id);
 
-    //  Update order status
-    order.status = status;
-    await order.save();
+    // 4️⃣ Delete order
+    await Order.findByIdAndDelete(id);
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
-      message: "Order updated successfully",
-      order
+      message: "Order cancelled successfully & email sent"
     });
 
   } catch (error) {
-    console.error("Order update error:", error);
-    return res.status(500).json({
+    console.error(error);
+    res.status(500).json({
       success: false,
-      message: "Failed to update order",
+      message: "Order delete failed",
       error: error.message
     });
   }
 };
 
 
-module.exports = { createOrder, orderView, orderSingleView,orderUpdate };
+
+module.exports = { createOrder, orderView, orderSingleView, orderUpdate, orderDelete };

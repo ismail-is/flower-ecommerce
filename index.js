@@ -10,7 +10,7 @@ const orderRouter=require('./Router/orderRoutes');
 const reviewRouter=require('./Router/reviewRouter');
 const userRoutes=require('./Router/userRoutes');
 const colorRoutes=require('./Router/colorRoutes');
-
+const cartRoutes = require('./Router/cartRoutes');
 
 
 
@@ -47,6 +47,7 @@ app.use('/api',orderRouter);
 app.use('/api',reviewRouter);
 app.use('/api',userRoutes);
 app.use('/api',colorRoutes);
+app.use('/api', cartRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
